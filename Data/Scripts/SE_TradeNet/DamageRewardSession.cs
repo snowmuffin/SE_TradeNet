@@ -37,7 +37,8 @@ namespace SE_TradeNet
         {
             ShowDebugMessage("DamageRewardSession: Registering Damage Handler");
             MyAPIGateway.Session.DamageSystem.RegisterBeforeDamageHandler(0, OnEntityDamaged);
-            MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(5756, MessageHandler);
+            MyAPIGateway.Multiplayer.RegisterMessageHandler(5363, HandleMessage);  
+
             m_init = true;
         }
 
@@ -161,6 +162,17 @@ namespace SE_TradeNet
                 if(attackPlayer.SteamUserId != null)
                 {
                     ShowDebugMessage($"DamageRewardSession: 공격자 엔티티 찾음, {attackerEntity.DisplayName}, 타입: {attackerEntity.GetType()} 소유자 {attackPlayer.SteamUserId}{attackPlayer.DisplayName}{attackerFaction.Tag}");
+                    byte[] message = new byte[12];
+                    byte[] messageID = BitConverter.GetBytes(attackPlayer.SteamUserId);
+                    byte[] messageValue = BitConverter.GetBytes(info.Amount);
+                    for (int i = 0; i < 8; i++) {
+                        message[i] = messageID[i];
+                    }
+
+                    for (int i = 0; i < 4; i++) {
+                        message[i + 8] = messageValue[i];
+                    }
+                    MyAPIGateway.Multiplayer.SendMessageToServer(5363, message);  
 
                 }
 
@@ -170,17 +182,18 @@ namespace SE_TradeNet
                 ShowDebugMessage($"DamageRewardSession: 예외 발생: {_exception.Message}\n스택 추적: {_exception.StackTrace}");
             }
         }
-        private void MessageHandler(ushort channel, byte[] message, ulong recipient, bool reliable)
+        private void HandleMessage(byte[] message)
         {
-			long ID = BitConverter.ToInt64(message, 0);
-			int value1 = BitConverter.ToInt32(message, 8);
-            int value2 = BitConverter.ToInt32(message, 12);
-            int value3 = BitConverter.ToInt32(message, 16);
-            
-			if(!MyAPIGateway.Multiplayer.IsServer)
-			{
-				
-			}
+            if (MyAPIGateway.Multiplayer.MultiplayerActive && MyAPIGateway.Multiplayer.IsServer)
+            {
+                // 메시지 처리
+                long steamId = BitConverter.ToInt64(message, 0);
+                float damageAmount = BitConverter.ToSingle(message, 8);
+
+                ShowDebugMessage($"서버에서 메시지 수신: SteamID = {steamId}, Damage = {damageAmount}");
+                
+                // 받은 데이터를 기반으로 서버 측 로직 처리
+            }
         }
         protected override void UnloadData()
         {
